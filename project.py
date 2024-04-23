@@ -48,7 +48,6 @@ population = '{:,.0f} M'.format(population/1e6)
 #define plot parameters
 fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(9, 6))
 plt.show(block=False)
-plt.show(block=False)
 
 #specify background color and plot title
 font = {'family': 'monospace',
