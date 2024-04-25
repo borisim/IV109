@@ -48,6 +48,8 @@ population = x_male.sum() + x_female.sum()
 text = plt.figtext(.6,.9,"Population: {:,}, Year: {}".format(int(population), year), ha='center')
 
 
+
+
 def pause(val):
     global paused
     global started
@@ -100,8 +102,10 @@ def draw():
     text.remove()
     text = plt.figtext(.7,.9,"Population: {:,}, Year: {}".format(int(population), year), ha='center')
 
+    ax1.barh(y, x_female, align='center', color='lightpink')
     ax1.barh(y, x_male, align='center', color='blue')
     ax1.set(title='Males')
+    ax2.barh(y, x_male, align='center', color='lightblue')
     ax2.barh(y, x_female, align='center', color='red')
     ax2.set(title='Females')
     ax1.invert_xaxis()
@@ -188,7 +192,8 @@ def update_plot(num):
     population = x_male.sum() + x_female.sum()
     
     mothers = sum(x_female[7:25])
-    kids = (mothers * fr) / 17
+    fathers = sum(x_male[7:25])
+    kids = (min(mothers, fathers) * fr) / 17
     kids = kids + (migration * population / 1000)
     boys = kids * (split / 100)
     girls = kids * ((100 - split) / 100)
