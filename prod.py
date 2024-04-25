@@ -6,7 +6,7 @@ import pandas as pd
 import random
 
 # Animation controls
-interval = 1 # ms, time between animation frames
+interval = 200 # ms, time between animation frames
 
 # data preprocessing
 file_path = "data/men.xlsx"
@@ -51,6 +51,7 @@ text = plt.figtext(.6,.9,"Population: {:,}, Year: {}".format(int(population), ye
 def pause(val):
     global paused
     global started
+
     if not started:
         started = True
         return
@@ -97,7 +98,7 @@ def draw():
     ax2.clear()
 
     text.remove()
-    text = plt.figtext(.6,.9,"Population: {:,}, Year: {}".format(int(population), year), ha='center')
+    text = plt.figtext(.7,.9,"Population: {:,}, Year: {}".format(int(population), year), ha='center')
 
     ax1.barh(y, x_male, align='center', color='blue')
     ax1.set(title='Males')
@@ -108,7 +109,7 @@ def draw():
 
 # pause button
 axpause = plt.axes([0.075, 0.1, 0.1, 0.075])
-bpause = Button(axpause, 'run/pause',color="grey")
+bpause = Button(axpause, '{}'.format('run/pause'),color="grey")
 bpause.on_clicked(pause)
 
 # reset button
@@ -124,6 +125,16 @@ s1 = Slider(sax1, 'death rate', 10, 50, valinit=50)
 fr = 1.83
 sax2 = plt.axes([0.075, .7, 0.3, 0.02])
 s2 = Slider(sax2, 'fertility rate', 0, 10, valinit=fr)
+
+# slider 1
+split = 51
+sax3 = plt.axes([0.075, .5, 0.3, 0.02])
+s3 = Slider(sax3, 'gender ratio', 0, 100, valinit=split)
+
+# slider 1
+migration = 0
+sax4 = plt.axes([0.075, .3, 0.3, 0.02])
+s4 = Slider(sax4, 'net migration', -30, 30, valinit=migration)
 
 
 def update_s1(val):
@@ -142,6 +153,15 @@ def update_s2(val):
     fr = val
     fig.canvas.draw_idle()
 
+def update_s3(val):
+    global split
+    split = val
+    fig.canvas.draw_idle()
+
+def update_s4(val):
+    global migration
+    migration = val
+    fig.canvas.draw_idle()
 
 def logistic_function(x, x0):
     return 1 / (0.005 + np.exp(-0.1 * (x - x0)))
@@ -169,9 +189,26 @@ def update_plot(num):
     
     mothers = sum(x_female[7:25])
     kids = (mothers * fr) / 17
+    kids = kids + (migration * population / 1000)
+    boys = kids * (split / 100)
+    girls = kids * ((100 - split) / 100)
+
+
+    x_male = x_male.to_frame().mul(probs, axis = 0).shift(periods=1).fillna(boys, limit=1)['Male']
+    x_female = x_female.to_frame().mul(probs, axis = 0).shift(periods=1).fillna(girls, limit=1)['Female']
+
+    age = 0
+    wtf = 0
+    for i, value in enumerate(x_male):
+        age += (i + 1) * value 
+        wtf += value
+        
+
+    for i, value in enumerate(x_female):
+        age += (i + 1) * value 
+        wtf += value
     
-    x_male = x_male.to_frame().mul(probs, axis = 0).shift(periods=1).fillna(kids/2, limit=1)['Male']
-    x_female = x_female.to_frame().mul(probs, axis = 0).shift(periods=1).fillna(kids/2, limit=1)['Female']
+    print(age / wtf * 2)
 
     draw()
 
@@ -179,6 +216,8 @@ def update_plot(num):
 # call update function on slider value change
 s1.on_changed(update_s1)
 s2.on_changed(update_s2)
+s3.on_changed(update_s3)
+s4.on_changed(update_s4)
 
 draw()
 
