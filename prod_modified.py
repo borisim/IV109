@@ -4,7 +4,6 @@ import matplotlib.animation as animation
 from matplotlib.widgets import Slider, Button
 from matplotlib import ticker
 import pandas as pd
-import random
 
 # Animation controls
 interval = 100  # ms, time between animation frames
@@ -38,13 +37,13 @@ df = merged_df.groupby(custom_grouping).sum()
 # plot figure and axes
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
 ax1.set_position([0.425, 0.1, 0.25, 0.7])
-ax2.set_position([0.725, 0.1, 0.25, 0.7])
+ax2.set_position([0.675, 0.1, 0.25, 0.7])
 
 # global variables
 y = range(0, len(df))
 x_male = df["Male"]
 x_female = df["Female"]
-year = 2024
+year = 2022
 started = False
 paused = False
 population = x_male.sum() + x_female.sum()
@@ -62,9 +61,13 @@ text = plt.figtext(
 )
 
 BIGGEST_POP_YEAR = max(max(x_male), max(x_female))
+
 # A better solution would be a normal distribution, but this is good enough for now
 FERTILITY_START_AGE = 18
-FERTILITY_END_AGE = 38
+FERTILITY_END_AGE = 36
+
+GENDER_DEATH_RATE_RATIO = 0.998  # multiplies male survival
+GENDER_BIRTH_RATE_RATIO = 1.04  # multiplies amount of boys born
 
 
 def pause(val):
@@ -110,27 +113,6 @@ def reset(val):
     fig.canvas.draw_idle()
 
 
-def mig(val):
-    global x_male
-    global x_female
-    global migration_avg_age
-    global migamount
-    global split
-
-    boys = migamount * (split / 100)
-    girls = migamount * ((100 - split) / 100)
-
-    nbins = 20
-
-    hist = generate_migrants(boys, nbins)
-    for i in range(nbins):
-        x_male[migration_avg_age // 2 + i - nbins // 2] += hist[i]
-
-    hist = generate_migrants(girls, nbins)
-    for i in range(nbins):
-        x_female[migration_avg_age // 2 + i - nbins // 2] += hist[i]
-
-
 def draw():
     global text
     global population
@@ -147,7 +129,7 @@ def draw():
     text = plt.figtext(
         0.7,
         0.9,
-        "Population: {:,}, Year: {}, Dependency: {}".format(
+        "Population: {:,}, Year: {}, Dependency Ratio: {}".format(
             int(population), year, int(dep)
         ),
         ha="center",
@@ -170,8 +152,36 @@ def draw():
     labels = [0, 20, 40, 60, 80, "100+"]
     ax1.yaxis.set_major_locator(ticker.FixedLocator(positions))
     ax1.yaxis.set_major_formatter(ticker.FixedFormatter(labels))
-    ax2.yaxis.set_major_locator(ticker.FixedLocator(positions))
-    ax2.yaxis.set_major_formatter(ticker.FixedFormatter(labels))
+
+    ax2.axes.get_yaxis().set_visible(False)
+    ax2.spines["left"].set_visible(False)
+    # ax2.yaxis.set_major_locator(ticker.FixedLocator(positions))
+    # ax2.yaxis.set_major_formatter(ticker.FixedFormatter(labels))
+
+
+def mig(val):
+    global x_male
+    global x_female
+    global migration_avg_age
+    global migamount
+    global split
+    global started
+
+    boys = migamount * (split / 100)
+    girls = migamount * ((100 - split) / 100)
+
+    nbins = 20
+
+    hist = generate_migrants(boys, nbins)
+    for i in range(nbins):
+        x_male[migration_avg_age // 2 + i - nbins // 2] += hist[i]
+
+    hist = generate_migrants(girls, nbins)
+    for i in range(nbins):
+        x_female[migration_avg_age // 2 + i - nbins // 2] += hist[i]
+
+    if paused:
+        draw()
 
 
 # pause button
@@ -218,15 +228,17 @@ net_migration = 0
 sax6 = plt.axes([0.075, 0.2, 0.3, 0.02])
 s6 = Slider(sax6, "net migration", 0, 500000, valinit=net_migration)
 
+death_probs = 2
+
 
 def update_s1(val):
-    global probs
+    global death_probs
     x0 = val
-    probs = np.linspace(0, 100, 51)
-    probs = logistic_function(probs, int(x0))
-    probs /= 100
-    probs = 1 - probs
-    probs = pd.DataFrame(probs, columns=["probies"]).to_numpy()
+    death_probs = np.linspace(0, 100, 51)
+    death_probs = logistic_function(death_probs, int(x0))
+    death_probs /= 100
+    death_probs = 1 - death_probs
+    death_probs = pd.DataFrame(death_probs, columns=["probies"]).to_numpy()
 
     fig.canvas.draw_idle()
 
@@ -265,12 +277,21 @@ def logistic_function(x, x0):
     return 1 / (0.005 + np.exp(-0.1 * (x - x0)))
 
 
-x0 = 60
-probs = np.linspace(0, 100, 51)
-probs = logistic_function(probs, x0)
-probs /= 100
-probs = 1 - probs
-probs = pd.DataFrame(probs, columns=["probies"]).to_numpy()
+male_x0 = 55
+male_death_probs = np.linspace(0, 100, 51)
+male_death_probs = logistic_function(male_death_probs, male_x0)
+male_death_probs /= 100
+male_survival_probs = 1 - male_death_probs
+male_survival_probs = pd.DataFrame(male_survival_probs, columns=["probies"]).to_numpy()
+
+female_x0 = 60
+female_death_probs = np.linspace(0, 100, 51)
+female_death_probs = logistic_function(female_death_probs, female_x0)
+female_death_probs /= 100
+female_survival_probs = 1 - female_death_probs
+female_survival_probs = pd.DataFrame(
+    female_survival_probs, columns=["probies"]
+).to_numpy()
 
 
 def generate_migrants(amount, num_bins):
@@ -280,7 +301,7 @@ def generate_migrants(amount, num_bins):
     return hist
 
 
-def update_plot(num):
+def update_simulation():
     global x_male
     global x_female
     global fr
@@ -288,9 +309,6 @@ def update_plot(num):
     global population
     global migration_avg_age
     global dep
-
-    if not started:
-        return
 
     year += 1
     population = x_male.sum() + x_female.sum()
@@ -306,15 +324,15 @@ def update_plot(num):
 
     x_male = (
         x_male.to_frame()
-        .mul(probs, axis=0)
+        .mul(male_survival_probs, axis=0)
         .shift(periods=1)
-        .fillna(kids / 2, limit=1)["Male"]
+        .fillna(kids * (GENDER_BIRTH_RATE_RATIO) / 2, limit=1)["Male"]
     )
     x_female = (
         x_female.to_frame()
-        .mul(probs, axis=0)
+        .mul(female_survival_probs, axis=0)
         .shift(periods=1)
-        .fillna(kids / 2, limit=1)["Female"]
+        .fillna(kids * (1 / GENDER_BIRTH_RATE_RATIO) / 2, limit=1)["Female"]
     )
 
     global net_migration
@@ -340,6 +358,21 @@ def update_plot(num):
     for i, value in enumerate(x_female):
         age += (i + 1) * value
         wtf += value
+
+
+def update_plot(num):
+    global x_male
+    global x_female
+    global fr
+    global year
+    global population
+    global migration_avg_age
+    global dep
+
+    if not started:
+        return
+
+    update_simulation()
 
     draw()
 
