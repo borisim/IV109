@@ -51,6 +51,9 @@ dep = ((sum(x_male[0:7]) + sum(x_female[0:7]) + sum(x_male[32:]) + sum(x_female[
 text = plt.figtext(.6,.9,"Population: {:,}, Year: {}, Dependency: {}".format(int(population), year, int(dep)), ha='center')
 
 BIGGEST_POP_YEAR = max(max(x_male), max(x_female))
+# A better solution would be a normal distribution, but this is good enough for now
+FERTILITY_START_AGE = 18
+FERTILITY_END_AGE = 38
 
 def pause(val):
     global paused
@@ -267,8 +270,10 @@ def update_plot(num):
     dep = ((sum(x_male[0:7]) + sum(x_female[0:7]) + sum(x_male[32:]) + sum(x_female[32:]))
        / (sum(x_male[7:32]) + sum(x_female[7:32]))) * 100
 
-    mothers = sum(x_female[7:20])
-    kids = (mothers * fr) / 12
+    start_i = FERTILITY_START_AGE // 2
+    end_i = FERTILITY_END_AGE // 2
+    mothers = sum(x_female[start_i:end_i])
+    kids = (mothers * fr) / (end_i - start_i)
 
     x_male = x_male.to_frame().mul(probs, axis = 0).shift(periods=1).fillna(kids/2, limit=1)['Male']
     x_female = x_female.to_frame().mul(probs, axis = 0).shift(periods=1).fillna(kids/2, limit=1)['Female']
