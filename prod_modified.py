@@ -28,46 +28,68 @@ merged_df = merged_df.iloc[:101]
 df = merged_df
 
 
-def custom_grouping(index):
-    return index // 2
+# def custom_grouping(index):
+#     return index // 2
 
 
-df = merged_df.groupby(custom_grouping).sum()
+# df = merged_df.groupby(custom_grouping).sum()
 
 # plot figure and axes
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-ax1.set_position([0.425, 0.1, 0.25, 0.7])
-ax2.set_position([0.675, 0.1, 0.25, 0.7])
+ax1.set_position([0.45, 0.1, 0.25, 0.7])
+ax2.set_position([0.7, 0.1, 0.25, 0.7])
 
 # global variables
 y = range(0, len(df))
 x_male = df["Male"]
 x_female = df["Female"]
-year = 2022
+year = None
 started = False
 paused = False
-population = x_male.sum() + x_female.sum()
-dep = (
-    (sum(x_male[0:7]) + sum(x_female[0:7]) + sum(x_male[32:]) + sum(x_female[32:]))
-    / (sum(x_male[7:32]) + sum(x_female[7:32]))
-) * 100
-text = plt.figtext(
-    0.6,
-    0.9,
-    "Population: {:,}, Year: {}, Dependency: {}".format(
-        int(population), year, int(dep)
-    ),
-    ha="center",
-)
+population = None
+dep = None
+text = plt.figtext(0.7, 0.8, "", ha="center")
 
 BIGGEST_POP_YEAR = max(max(x_male), max(x_female))
 
 # A better solution would be a normal distribution, but this is good enough for now
 FERTILITY_START_AGE = 18
-FERTILITY_END_AGE = 36
+FERTILITY_END_AGE = 35
 
-GENDER_DEATH_RATE_RATIO = 0.998  # multiplies male survival
 GENDER_BIRTH_RATE_RATIO = 1.04  # multiplies amount of boys born
+
+
+def logistic_function(x, x0):
+    return 1 / (0.005 + np.exp(-0.1 * (x - x0)))
+
+
+male_x0 = 60
+male_death_probs = np.linspace(0, 100, len(df))
+male_death_probs = logistic_function(male_death_probs, male_x0)
+male_death_probs /= 100
+male_survival_probs = 1 - male_death_probs
+male_survival_probs = pd.DataFrame(male_survival_probs, columns=["probies"]).to_numpy()
+
+female_x0 = 65
+female_death_probs = np.linspace(0, 100, len(df))
+female_death_probs = logistic_function(female_death_probs, female_x0)
+female_death_probs /= 100
+female_survival_probs = 1 - female_death_probs
+female_survival_probs = pd.DataFrame(
+    female_survival_probs, columns=["probies"]
+).to_numpy()
+
+
+def dependency_ratio(x_male, x_female):
+    return (
+        (
+            sum(x_male[0:15])
+            + sum(x_female[0:15])
+            + sum(x_male[65:])
+            + sum(x_female[65:])
+        )
+        / (sum(x_male[15:65]) + sum(x_female[15:65]))
+    ) * 100
 
 
 def pause(val):
@@ -86,12 +108,7 @@ def pause(val):
     fig.canvas.draw_idle()
 
 
-def reset(val):
-    global paused
-    if not paused:
-        paused = True
-        ani.pause()
-
+def reset_vals():
     global df
     global x_male
     global x_female
@@ -102,12 +119,18 @@ def reset(val):
 
     x_male = df["Male"]
     x_female = df["Female"]
-    year = 2024
+    year = 2022
     population = x_male.sum() + x_female.sum()
-    dep = (
-        (sum(x_male[0:7]) + sum(x_female[0:7]) + sum(x_male[32:]) + sum(x_female[32:]))
-        / (sum(x_male[7:32]) + sum(x_female[7:32]))
-    ) * 100
+    dep = dependency_ratio(x_male, x_female)
+
+
+def reset(val):
+    global paused
+    if not paused:
+        paused = True
+        ani.pause()
+
+    reset_vals()
 
     draw()
     fig.canvas.draw_idle()
@@ -128,7 +151,7 @@ def draw():
     text.remove()
     text = plt.figtext(
         0.7,
-        0.9,
+        0.85,
         "Population: {:,}, Year: {}, Dependency Ratio: {}".format(
             int(population), year, int(dep)
         ),
@@ -143,12 +166,12 @@ def draw():
     ax2.set(title="Females")
     ax1.invert_xaxis()
 
-    axis_lim = BIGGEST_POP_YEAR * 1.2
+    axis_lim = BIGGEST_POP_YEAR * 1.1
 
     ax1.set_xlim([axis_lim, 0])
     ax2.set_xlim([0, axis_lim])
 
-    positions = [0, 10, 20, 30, 40, 50]
+    positions = [0, 20, 40, 60, 80, 100]
     labels = [0, 20, 40, 60, 80, "100+"]
     ax1.yaxis.set_major_locator(ticker.FixedLocator(positions))
     ax1.yaxis.set_major_formatter(ticker.FixedFormatter(labels))
@@ -170,32 +193,32 @@ def mig(val):
     boys = migamount * (split / 100)
     girls = migamount * ((100 - split) / 100)
 
-    nbins = 20
+    nbins = 40
 
     hist = generate_migrants(boys, nbins)
     for i in range(nbins):
-        x_male[migration_avg_age // 2 + i - nbins // 2] += hist[i]
+        x_male[migration_avg_age + i - nbins // 2] += hist[i]
 
     hist = generate_migrants(girls, nbins)
     for i in range(nbins):
-        x_female[migration_avg_age // 2 + i - nbins // 2] += hist[i]
+        x_female[migration_avg_age + i - nbins // 2] += hist[i]
 
     if paused:
         draw()
 
 
 # pause button
-axpause = plt.axes([0.075, 0.05, 0.1, 0.075])
+axpause = plt.axes([0.05, 0.05, 0.1, 0.075])
 bpause = Button(axpause, "{}".format("run/pause"), color="grey")
 bpause.on_clicked(pause)
 
 # reset button
-axreset = plt.axes([0.19, 0.05, 0.1, 0.075])
+axreset = plt.axes([0.165, 0.05, 0.1, 0.075])
 breset = Button(axreset, "reset", color="grey")
 breset.on_clicked(reset)
 
 # migrants button
-axmig = plt.axes([0.3, 0.05, 0.1, 0.075])
+axmig = plt.axes([0.275, 0.05, 0.1, 0.075])
 bmig = Button(axmig, "wave", color="grey")
 bmig.on_clicked(mig)
 
@@ -204,7 +227,7 @@ sax1 = plt.axes([0.075, 0.7, 0.3, 0.02])
 s1 = Slider(sax1, "death rate", 10, 60, valinit=60)
 
 # slider 2
-fr = 1.83
+fr = 1.674
 sax2 = plt.axes([0.075, 0.6, 0.3, 0.02])
 s2 = Slider(sax2, "fertility rate", 0, 5, valinit=fr)
 
@@ -214,7 +237,7 @@ sax3 = plt.axes([0.075, 0.5, 0.3, 0.02])
 s3 = Slider(sax3, "gender ratio", 0, 100, valinit=split)
 
 # slider 4
-migration_avg_age = 30
+migration_avg_age = 35
 sax4 = plt.axes([0.075, 0.4, 0.3, 0.02])
 s4 = Slider(sax4, "average age", 20, 50, valinit=migration_avg_age)
 
@@ -226,7 +249,7 @@ s5 = Slider(sax5, "migration wave", 0, 500000, valinit=migamount)
 # slider 6
 net_migration = 0
 sax6 = plt.axes([0.075, 0.2, 0.3, 0.02])
-s6 = Slider(sax6, "net migration", 0, 500000, valinit=net_migration)
+s6 = Slider(sax6, "net migration", 0, 250000, valinit=net_migration)
 
 death_probs = 2
 
@@ -234,7 +257,7 @@ death_probs = 2
 def update_s1(val):
     global death_probs
     x0 = val
-    death_probs = np.linspace(0, 100, 51)
+    death_probs = np.linspace(0, 100, len(df))
     death_probs = logistic_function(death_probs, int(x0))
     death_probs /= 100
     death_probs = 1 - death_probs
@@ -273,32 +296,14 @@ def update_s6(val):
     fig.canvas.draw_idle()
 
 
-def logistic_function(x, x0):
-    return 1 / (0.005 + np.exp(-0.1 * (x - x0)))
-
-
-male_x0 = 55
-male_death_probs = np.linspace(0, 100, 51)
-male_death_probs = logistic_function(male_death_probs, male_x0)
-male_death_probs /= 100
-male_survival_probs = 1 - male_death_probs
-male_survival_probs = pd.DataFrame(male_survival_probs, columns=["probies"]).to_numpy()
-
-female_x0 = 60
-female_death_probs = np.linspace(0, 100, 51)
-female_death_probs = logistic_function(female_death_probs, female_x0)
-female_death_probs /= 100
-female_survival_probs = 1 - female_death_probs
-female_survival_probs = pd.DataFrame(
-    female_survival_probs, columns=["probies"]
-).to_numpy()
-
-
 def generate_migrants(amount, num_bins):
-    data = np.random.normal(0, 30, int(amount))
-    hist, _ = np.histogram(data, bins=range(-num_bins, num_bins + 1, 2))
+    data = np.random.normal(0, 20, int(amount))
+    hist, _ = np.histogram(data, bins=range(-num_bins // 2, num_bins // 2 + 1))
 
-    return hist
+    if sum(hist) == 0:
+        return hist
+
+    return hist * (amount / sum(hist))
 
 
 def update_simulation():
@@ -312,13 +317,10 @@ def update_simulation():
 
     year += 1
     population = x_male.sum() + x_female.sum()
-    dep = (
-        (sum(x_male[0:7]) + sum(x_female[0:7]) + sum(x_male[32:]) + sum(x_female[32:]))
-        / (sum(x_male[7:32]) + sum(x_female[7:32]))
-    ) * 100
+    dep = dependency_ratio(x_male, x_female)
 
-    start_i = FERTILITY_START_AGE // 2
-    end_i = FERTILITY_END_AGE // 2
+    start_i = FERTILITY_START_AGE
+    end_i = FERTILITY_END_AGE + 1
     mothers = sum(x_female[start_i:end_i])
     kids = (mothers * fr) / (end_i - start_i)
 
@@ -339,15 +341,15 @@ def update_simulation():
     boys = net_migration * (split / 100)
     girls = net_migration * ((100 - split) / 100)
 
-    nbins = 20
+    nbins = 40
 
     hist = generate_migrants(boys, nbins)
     for i in range(nbins):
-        x_male[migration_avg_age // 2 + i - nbins // 2] += hist[i]
+        x_male[migration_avg_age + i - nbins // 2] += hist[i]
 
     hist = generate_migrants(girls, nbins)
     for i in range(nbins):
-        x_female[migration_avg_age // 2 + i - nbins // 2] += hist[i]
+        x_female[migration_avg_age + i - nbins // 2] += hist[i]
 
     age = 0
     wtf = 0
@@ -385,9 +387,11 @@ s4.on_changed(update_s4)
 s5.on_changed(update_s5)
 s6.on_changed(update_s6)
 
+reset_vals()
 draw()
 
 ani = animation.FuncAnimation(fig, update_plot, interval=interval)
+
 
 plt.show()
 
