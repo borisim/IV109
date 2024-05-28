@@ -60,6 +60,7 @@ GENDER_BIRTH_RATE_RATIO = 1.04  # multiplies amount of boys born
 
 
 def logistic_function(x, x0):
+    # return np.exp(0.1 * (x - x0))
     return 1 / (0.005 + np.exp(-0.1 * (x - x0)))
 
 
@@ -150,12 +151,13 @@ def draw():
 
     text.remove()
     text = plt.figtext(
-        0.7,
+        0.69,
         0.85,
-        "Population: {:,}, Year: {}, Dependency Ratio: {}".format(
-            int(population), year, int(dep)
+        "Year: {}, Population: {:,}, Dependency Ratio: {}".format(
+            year, int(population), int(dep)
         ),
         ha="center",
+        fontsize=18,
     )
 
     ax1.barh(y, x_female, align="center", color="lightpink")
@@ -193,15 +195,13 @@ def mig(val):
     boys = migamount * (split / 100)
     girls = migamount * ((100 - split) / 100)
 
-    nbins = 40
-
     hist = generate_migrants(boys, nbins)
     for i in range(nbins):
-        x_male[migration_avg_age + i - nbins // 2] += hist[i]
+        x_male[int(migration_avg_age) + i - nbins // 2] += hist[i]
 
     hist = generate_migrants(girls, nbins)
     for i in range(nbins):
-        x_female[migration_avg_age + i - nbins // 2] += hist[i]
+        x_female[int(migration_avg_age) + i - nbins // 2] += hist[i]
 
     if paused:
         draw()
@@ -227,7 +227,7 @@ sax1 = plt.axes([0.075, 0.7, 0.3, 0.02])
 s1 = Slider(sax1, "death rate", 10, 60, valinit=60)
 
 # slider 2
-fr = 1.674
+fr = 1.66
 sax2 = plt.axes([0.075, 0.6, 0.3, 0.02])
 s2 = Slider(sax2, "fertility rate", 0, 5, valinit=fr)
 
@@ -239,7 +239,7 @@ s3 = Slider(sax3, "gender ratio", 0, 100, valinit=split)
 # slider 4
 migration_avg_age = 35
 sax4 = plt.axes([0.075, 0.4, 0.3, 0.02])
-s4 = Slider(sax4, "average age", 20, 50, valinit=migration_avg_age)
+s4 = Slider(sax4, "average age", 30, 50, valinit=migration_avg_age)
 
 # slider 5
 migamount = 0
@@ -296,12 +296,18 @@ def update_s6(val):
     fig.canvas.draw_idle()
 
 
+migrant_sd = 20
+nbins = 50
+
+
 def generate_migrants(amount, num_bins):
-    data = np.random.normal(0, 20, int(amount))
+    data = np.random.normal(0, migrant_sd, int(amount))
     hist, _ = np.histogram(data, bins=range(-num_bins // 2, num_bins // 2 + 1))
 
     if sum(hist) == 0:
         return hist
+
+    # print(sum(hist * (amount / sum(hist))))
 
     return hist * (amount / sum(hist))
 
@@ -341,15 +347,13 @@ def update_simulation():
     boys = net_migration * (split / 100)
     girls = net_migration * ((100 - split) / 100)
 
-    nbins = 40
-
     hist = generate_migrants(boys, nbins)
     for i in range(nbins):
-        x_male[migration_avg_age + i - nbins // 2] += hist[i]
+        x_male[int(migration_avg_age) + i - nbins // 2] += hist[i]
 
     hist = generate_migrants(girls, nbins)
     for i in range(nbins):
-        x_female[migration_avg_age + i - nbins // 2] += hist[i]
+        x_female[int(migration_avg_age) + i - nbins // 2] += hist[i]
 
     age = 0
     wtf = 0
