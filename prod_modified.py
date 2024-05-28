@@ -394,6 +394,82 @@ s6.on_changed(update_s6)
 reset_vals()
 draw()
 
+
+deps = []
+
+# # startegy 1 - equal amount of migrants every year
+# reset_vals()
+# deps.append([])
+# net_migration = 60000
+# while year < 2060:
+#     deps[0].append(dep)
+#     update_simulation()
+# deps[0].append(dep)
+
+# # startegy 2 - all migrants come at the start
+# reset_vals()
+# deps.append([])
+# net_migration = 60000 * (2060 - 2022)
+# while year < 2060:
+#     deps[1].append(dep)
+#     update_simulation()
+#     net_migration = 0
+# deps[1].append(dep)
+
+# # strategy 3 - all migrants come at the end
+# reset_vals()
+# deps.append([])
+# net_migration = 0
+# while year < 2058:
+#     deps[2].append(dep)
+#     update_simulation()
+# deps[2].append(dep)
+# net_migration = 60000 * (2060 - 2022)
+# update_simulation()
+# deps[2].append(dep)
+# update_simulation()
+# deps[2].append(dep)
+
+# # strategy 4 - all migrants come in the middle
+# reset_vals()
+# deps.append([])
+# net_migration = 0
+# while year < 2040:
+#     deps[3].append(dep)
+#     update_simulation()
+# net_migration = 60000 * (2060 - 2022)
+# while year < 2060:
+#     deps[3].append(dep)
+#     update_simulation()
+#     net_migration = 0
+# deps[3].append(dep)
+
+# # strategy 5 - increasing amount of migrants
+# reset_vals()
+# net_migration = 0
+# deps.append([])
+# while year < 2060:
+#     deps[4].append(dep)
+#     update_simulation()
+#     net_migration += 120000 / (2060 - 2022)
+# deps[4].append(dep)
+
+# # strategy 6 - decreasing amount of migrants
+# reset_vals()
+# net_migration = 120000
+# deps.append([])
+# while year < 2060:
+#     deps[5].append(dep)
+#     update_simulation()
+#     net_migration -= 120000 / (2060 - 2022)
+# deps[5].append(dep)
+
+# for i in range(6):
+#     print(len(deps[i]))
+
+# dff = pd.DataFrame(np.array(deps))
+# dff.to_csv("deps.csv")
+
 ani = animation.FuncAnimation(fig, update_plot, interval=interval)
 
 
